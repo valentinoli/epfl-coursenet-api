@@ -12,6 +12,7 @@ def write_df_processed(filename, dataframe, orient='records', indent=2):
     create_dirs(path)
     """Writes Pandas @dataframe to a json file @filename"""
     dataframe.to_json(path, orient=orient, indent=indent)
+    print(f'Dataframe written to {path}')
 
 
 def write_object(filename, obj, subdir='raw', indent=2):
@@ -20,6 +21,7 @@ def write_object(filename, obj, subdir='raw', indent=2):
     create_dirs(path)
     with open(path, 'w') as json_file:
         json.dump(obj, json_file, indent=indent)
+        print(f'Python object written to {path}')
 
 
 def write_object_raw(filename, obj):
