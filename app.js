@@ -22,9 +22,6 @@ function executePythonProcess() {
   console.info('Executing python process...')
 }
 
-// Execute when app starts
-// executePythonProcess()
-
 // Execute python process on Sundays at 3 AM
 schedule.scheduleJob({ hour: 3, minute: 0, dayOfWeek: 0 }, executePythonProcess)
 
