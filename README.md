@@ -32,3 +32,9 @@ Run redis server and Node app in parallel
 ```bash
 npm run dev
 ```
+
+Run the following in your activated environment to connect the environment to Jupyter notebook:
+```bash
+pip install --user ipykernel
+python -m ipykernel install --user --name=coursebook-env
+```

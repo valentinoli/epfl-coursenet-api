@@ -314,16 +314,22 @@ programs_df = programs_df.sort_values(by=['slug', 'levelSlug', 'programSlug'], k
 # In[27]:
 
 
-programs_df['program'] = programs_df.apply(lambda r: {
-    'title': r.programTitle,
-    'slug': r.programSlug,
-    'semesterNumbers': r.semesterNumbers,
-    'specializations': (
-        courses_specializations.loc[r.slug][r.programSlug]
-        if r.programSlug in courses_specializations.loc[r.slug]
-        else []
-    )
-}, axis=1)
+def create_program_column(r):
+    program = {
+        'title': r.programTitle,
+        'slug': r.programSlug,
+        'semesterNumbers': r.semesterNumbers
+    }
+
+    if r.levelSlug == 'master':
+        program['specializations'] = (
+            courses_specializations.loc[r.slug][r.programSlug]
+            if r.programSlug in courses_specializations.loc[r.slug]
+            else []
+        )
+    return program
+
+programs_df['program'] = programs_df.apply(create_program_column, axis=1)
 
 
 # In[28]:
@@ -472,7 +478,7 @@ print('Manually filling in semester info for courses without coursebook link')
 print(list(courses_nolink.index))
 
 
-# In[44]:
+# In[43]:
 
 
 spring = 'Spring'
@@ -498,7 +504,7 @@ for idx, semester in manual_semester.items():
     courses.loc[idx, 'semester'] = semester
 
 
-# In[45]:
+# In[44]:
 
 
 # values in these columns should not be NaN
@@ -509,28 +515,28 @@ print(cols_notna_each)
 assert cols_notna_each.all()
 
 
-# In[47]:
+# In[45]:
 
 
 # Fill NaN in other columns with empty string
 courses.fillna(value='', inplace=True)
 
 
-# In[48]:
+# In[46]:
 
 
 print('Comparing `subjectExamined` and `name` fields\n')
 print(courses[courses.subjectExamined != courses.name][['subjectExamined', 'name']])
 
 
-# In[49]:
+# In[47]:
 
 
 # Drop subjectExamined field
 courses.drop('subjectExamined', axis=1, inplace=True)
 
 
-# In[50]:
+# In[48]:
 
 
 text_cols = ['summary', 'content', 'keywords', 'requiredCourses', 'recommendedCourses', 'priorConcepts', 'preparationFor']
@@ -538,7 +544,7 @@ courses_text = courses[text_cols]
 courses.drop(text_cols, axis=1, inplace=True)
 
 
-# In[51]:
+# In[49]:
 
 
 # str --> list
@@ -550,19 +556,19 @@ courses = courses.astype({
 courses.reset_index(inplace=True)
 
 
-# In[52]:
+# In[50]:
 
 
 # %pycat utils/write
 
 
-# In[53]:
+# In[51]:
 
 
 write.write_df_processed('courses', courses)
 
 
-# In[54]:
+# In[52]:
 
 
 write.write_df_processed('courses-text', courses_text, orient='index')
@@ -571,7 +577,7 @@ write.write_df_processed('courses-text', courses_text, orient='index')
 # ## Process `programs` and create `epfl` dict
 # ***
 
-# In[55]:
+# In[53]:
 
 
 # add 'courses' property to all levels
@@ -584,7 +590,7 @@ for level in programs:
     })
 
 
-# In[56]:
+# In[54]:
 
 
 # add 'courses' property to top level
@@ -594,7 +600,7 @@ epfl = {
 }
 
 
-# In[57]:
+# In[55]:
 
 
 write.write_object('epfl', epfl, subdir='processed')
