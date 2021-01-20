@@ -1,7 +1,9 @@
 beautifulsoup4==4.9.3
+nltk==3.5
 pandas==1.2.0
 redis==3.5.3
 requests==2.25.0
+scikit-learn==0.24.1
 titlecase==1.1.1
 
 -e ./py

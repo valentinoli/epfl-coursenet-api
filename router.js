@@ -1,4 +1,5 @@
 const { promisify } = require('util')
+const exec = promisify(require('child_process').exec)
 
 const express = require('express')
 const redis = require('redis')
@@ -52,6 +53,24 @@ async function getCourse(req, res, next) {
   return res.json(value)
 }
 
+async function submitQuery(req, res, next) {
+  const { query, topk = 10 } = req.query
+  if (!query) {
+    return res.status(400).json({ error: 'Parameter <query> is missing' })
+  }
+  const cmd = `py ./py/search/query.py ${topk} ${query}`
+  const { stdout, stderr } = await exec(cmd)
+
+  console.log('stdout:', stdout)
+  console.error('stderr:', stderr)
+
+  if (stderr) {
+    return res.status(500).json({ error: stderr })
+  }
+
+  return res.json(JSON.parse(stdout))
+}
+
 router.get('/', (req, res) => {
   res.json({
     '/epfl': {
@@ -60,7 +79,10 @@ router.get('/', (req, res) => {
       '/:level/:program': 'Study program',
       '/master/:program/:specialization': 'Master specialization'
     },
-    '/course/:slug': 'Detailed course information'
+    '/course': {
+      '/:slug': 'Detailed course information',
+      '/search?query=<query>&topk=10': 'Keyword search'
+    }
   })
 })
 router.get(
@@ -70,6 +92,10 @@ router.get(
 router.get(
   '/course/:slug([a-z0-9-]+)',
   catchErrors(getCourse)
+)
+router.get(
+  '/course/search',
+  catchErrors(submitQuery)
 )
 
 module.exports = router
