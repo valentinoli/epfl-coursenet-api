@@ -58,7 +58,7 @@ async function submitQuery(req, res, next) {
   if (!query) {
     return res.status(400).json({ error: 'Parameter <query> is missing' })
   }
-  const cmd = `py ./py/search/query.py ${topk} ${query}`
+  const cmd = `python ./py/search/query.py ${topk} ${query}`
   const { stdout, stderr } = await exec(cmd)
 
   console.log('stdout:', stdout)
