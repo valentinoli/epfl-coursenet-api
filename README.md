@@ -35,6 +35,6 @@ npm run dev
 
 Run the following in your activated environment to connect the environment to Jupyter notebook:
 ```bash
-pip install --user ipykernel
+pip install ipykernel
 python -m ipykernel install --user --name=coursebook-env
 ```
