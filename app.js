@@ -48,7 +48,7 @@ app.use(notFoundHandler)
 app.use(errorHandler)
 
 const {
-  PORT: port = 3000
+  PORT: port = 5000
 } = process.env
 
 app.listen(port, () => {
