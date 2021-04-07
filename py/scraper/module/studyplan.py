@@ -1,4 +1,5 @@
 import re
+import copy
 from collections import OrderedDict
 from string import punctuation
 from titlecase import titlecase
@@ -242,10 +243,9 @@ def scrape_studyplan_specializations(soup):
         slug = '-'.join(title_lowered_no_punct.split())
         specs[key] = {
             'value': key,
-            'title': title,
-            'slug': slug
+            'slug': slug,
+            'title': title
         }
-
     return specs
 
 
@@ -292,11 +292,13 @@ def scrape_course_specs_generator(line, specs_dict):
             print(f'Specialization "{spec_value}" not found in specialization legend [{course_code}]')
 
 
-def scrape(level_source_slug, program_source_slug, program_slug):
+def scrape(program):#(level_source_slug, program_source_slug, program_slug):
     """
     Scrapes studyplan data for the given level and program.
     Returns metadata for the program and the list of courses.
     """
+    level_source_slug = program['levelSourceSlug']
+    program_source_slug = program['sourceSlug']
     print(f'\n>>> Scraping studyplan {level_source_slug}: {program_source_slug}\n')
 
     # visit program's studyplan and fetch content soup
@@ -396,25 +398,28 @@ def scrape(level_source_slug, program_source_slug, program_slug):
                     # scrape specializations per course
                     course_specs = [
                         list(scrape_course_specs_generator(line, specs_dict))
-                        # [
-                        #     # next(spec for spec in specs if img.get('src')[-5:-4] == spec['value'])
-                        #     for img in line.find(class_='specialisation').find_all('img')
-                        # ]
                         for line in lines
                     ]
 
-                # create dict of dicts from list of dicts
-                # and add 'courses' property to each specialization dict
-                specs_dict = {
-                    k: { **v, 'courses': []  }
-                    for k, v in specs_dict.items()
-                }
+                # create dict for info about program specializations
+                program_specs = copy.deepcopy(specs_dict)
+                for s in program_specs.values():
+                    s.update({
+                        'programSourceSlug': program['sourceSlug'],
+                        'programSlug': program['slug'],
+                        'programTitle': program['title'],
+                        'levelSourceSlug': program['levelSourceSlug'],
+                        'levelSlug': program['levelSlug'],
+                        'levelTitle': program['levelTitle'],
+                        'courses': []  # course list
+                    })
 
                 for i, course_slug in enumerate(slugs):
                     for spec in course_specs[i]:
-                        specs_dict[spec['value']]['courses'].append(course_slug)
+                        program_specs[spec['value']]['courses'].append(course_slug)
 
-                program_data['specializations'] = list(specs_dict.values())
+
+                program_data['specializations'] = list(program_specs.values())
 
 
     # create dict for each course and append to courses list
@@ -434,7 +439,7 @@ def scrape(level_source_slug, program_source_slug, program_slug):
         }
 
         if specs_dict:
-            course['specializations'] = { program_slug: course_specs[i] }
+            course['specializations'] = { program['slug']: course_specs[i] }
 
         courses_data.append(course)
 
@@ -449,8 +454,15 @@ if __name__ == '__main__':
     numargs = 3
     if len(sys.argv) != numargs:
         raise TypeError('Invalid number of arguments')
-    path, level, program = sys.argv
+    path, level_slug, program_slug = sys.argv
     print(f'testing module {path}')
-    program_data, courses_data = scrape(level, program, program)
+    program_data, courses_data = scrape({
+        'sourceSlug': program_slug,
+        'slug': program_slug,
+        'title': program_slug,
+        'levelSourceSlug': level_slug,
+        'levelSlug': level_slug,
+        'levelTitle': level_slug
+    })
     pprint(courses_data)
     pprint(program_data)

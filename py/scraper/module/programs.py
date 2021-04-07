@@ -51,8 +51,9 @@ def scrape(level):
     """
     Scrapes study programs for given level
     """
-    print(f'\n>>> Scraping {level} programs')
-    url = util.join_path(base_url, studyplan_path, level)
+    level_source_slug = level['sourceSlug']
+    print(f'\n>>> Scraping {level_source_slug} programs')
+    url = util.join_path(base_url, studyplan_path, level_source_slug)
     soup = util.bsoup(url)
     ulist = soup.ul
 
@@ -63,14 +64,14 @@ def scrape(level):
     for a in anchors:
         href = a.get('href')
         source_slug = href.rsplit('/', 1)[-1]
-        if program_is_outofdate(level, source_slug):
-            # skip out of date programs
+        if program_is_outofdate(level_source_slug, source_slug):
+            # skip programs that are not offered anymore
             continue
 
         slug = source_slug
         title = a.text
 
-        if level == 'minor':
+        if level_source_slug == 'minor':
             if title.startswith('Mineur STAS'):
                 # STAS abolished from 2020-21
                 # https://www.epfl.ch/schools/cdh/education-2/stas-2/
@@ -87,7 +88,7 @@ def scrape(level):
                 # integrated-design-architecture-and-sustainability (prev. durability)
                 .replace('durability', 'sustainability')
             )
-        elif level == 'master':
+        elif level_source_slug == 'master':
             title = (
                 title
                 .replace('Computer Science - Cybersecurity', 'Cyber Security')
@@ -98,14 +99,16 @@ def scrape(level):
                 .replace('computer-science-cybersecurity', 'cybersecurity')
                 .replace('-master-program', '')
             )
-        elif level == 'doctoral_school':
+        elif level_source_slug == 'doctoral_school':
             title = title.replace('(edoc)', '')
 
         programs.append({
             'sourceSlug': source_slug,
             'slug': slug,
             'title': titlecase(title.strip()),
-            'levelSlug': util.construct_level_slug(level)
+            'levelSourceSlug': level_source_slug,
+            'levelSlug': level['slug'],
+            'levelTitle': level['title']
         })
     return programs
 
@@ -117,4 +120,4 @@ if __name__ == '__main__':
         raise TypeError('Invalid number of arguments')
     path, level_slug = sys.argv
     print(f'testing module {path}')
-    print(scrape(level_slug))
+    print(scrape({ 'sourceSlug': level_slug, 'slug': level_slug, 'title': level_slug }))
