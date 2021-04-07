@@ -28,6 +28,14 @@ async function fromCache(key) {
   return JSON.parse(cached)
 }
 
+async function getNavigation(req, res, next) {
+  const value = await fromCache('nav')
+  if (!value) {
+    return next()
+  }
+  return res.json(value)
+}
+
 async function getEPFL(req, res, next) {
   const {
     level = '',
@@ -82,9 +90,14 @@ router.get('/', (req, res) => {
     '/course': {
       '/:slug': 'Detailed course information',
       '/search?query=<query>&topk=10': 'Keyword search'
-    }
+    },
+    '/nav': 'Treeview navigation structure'
   })
 })
+router.get(
+  '/nav',
+  catchErrors(getNavigation)
+)
 router.get(
   '/epfl/:level([a-z-]+)?/:program([a-z-]+)?/:specialization([a-z-]+)?',
   catchErrors(getEPFL)
