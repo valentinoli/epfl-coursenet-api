@@ -1,35 +1,21 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
-import re
 import pandas as pd
-from operator import add
 from utils import read, write
-
-
-# In[2]:
 
 
 programs = read.read_json_raw('programs')
 courses_studyplan = read.read_json_raw('courses-studyplan')
 courses_coursebook = read.read_json_raw('courses-coursebook')
 
-
-# ## Process `courses_studyplan`
-# ---
-
-# In[3]:
-
+###################################
+# Process `courses_studyplan`     #
+###################################
 
 courses_sp = pd.DataFrame.from_records(courses_studyplan, index='slug')
 print('columns in courses_sp:\n', courses_sp.columns)
 print(f'Number of courses in courses_sp: {courses_sp.index.nunique()}')
-
-
-# In[4]:
 
 
 # We want to deal with specializations column separately
@@ -54,10 +40,7 @@ courses_sourceslugs = (
 )
 
 
-# In[5]:
-
-
-def get_duplicates(df):    
+def get_duplicates(df):
     nunique = df.groupby(df.index).nunique(dropna=False)
 
     # Here we compute the number of different values for each column per course
@@ -75,23 +58,23 @@ dups = get_duplicates(courses_sp)
 print(dups)
 
 
-# In[6]:
-
-
-courses_sp.loc['bioeng-448', 'remark'] = ''
-courses_sp.loc['bioeng-448', 'lecturers'] = courses_sp.loc['bioeng-448', 'lecturers'][1]
+# courses_sp.loc['bioeng-448', 'remark'] = ''
+# courses_sp.loc['bioeng-448', 'lecturers'] = courses_sp.loc['bioeng-448', 'lecturers'][1]
 courses_sp.loc['che-803', 'remark'] = courses_sp.loc['che-803', 'remark'][0]
+courses_sp.loc['com-503', 'remark'] = courses_sp.loc['com-503', 'remark'][0]
+courses_sp.loc['com-506', 'examForm'] = courses_sp.loc['com-506', 'examForm'][0]
+courses_sp.loc['cs-448', 'remark'] = courses_sp.loc['cs-448', 'remark'][0]
+courses_sp.loc['cs-596', 'remark'] = courses_sp.loc['cs-596', 'remark'][0]
 courses_sp.loc['ee-492-d', 'remark'] = 'Only from second semester (Electrical and Electronics Engineering, Master)'
+courses_sp.loc['eng-466', 'examForm'] = courses_sp.loc['eng-466', 'examForm'][0]
 courses_sp.loc['fin-406', 'remark'] = courses_sp.loc['cs-524', 'remark'][1]
 courses_sp.loc['math-318', 'remark'] = courses_sp.loc['math-318', 'remark'][1]
 # me-411: probably 5 credits and not 4? Note different source slugs.
 courses_sp.loc['me-411', 'credits'] = courses_sp.loc['me-411', 'credits'][0]
-courses_sp.loc['me-418', 'remark'] = courses_sp.loc['me-418', 'remark'][1]
+# courses_sp.loc['me-418', 'remark'] = courses_sp.loc['me-418', 'remark'][1]
+courses_sp.loc['mgt-431', 'remark'] = courses_sp.loc['mgt-431', 'remark'][2]
 courses_sp.loc['mgt-555', 'remark'] = 'Can be taken instead of Research Project in Materials I (Material Science and Engineering, Master)'
-courses_sp.loc['micro-723', 'remark'] = ''
-
-
-# In[7]:
+# courses_sp.loc['micro-723', 'remark'] = ''
 
 
 dups = get_duplicates(courses_sp)
@@ -99,9 +82,6 @@ if len(dups) > 0:
     print('Unhandled duplicates (studyplan):\n', dups)
     print(courses_sp.loc[dups.index])
 assert dups.size == 0
-
-
-# In[8]:
 
 
 # Strip whitespace
@@ -114,30 +94,34 @@ courses_sp = df_strip(courses_sp)
 courses_sp.drop_duplicates(subset='code', inplace=True)
 
 
-# In[9]:
-
-
 courses_sp['sourceSlug'] = courses_sourceslugs
 
 
-# ## Process `courses_coursebook`
-# ---
-
-# In[10]:
-
+###################################
+# Process `courses_coursebook`    #
+###################################
 
 courses_cb = pd.DataFrame.from_records(courses_coursebook, index='slug')
-
-
-# In[11]:
 
 
 print('columns in courses_cb:\n', courses_cb.columns)
 print(f'Number of courses in courses_sp: {courses_cb.index.nunique()}')
 
 
-# In[12]:
+# Format workload columns
+def format_workload_col(el):
+    if el.startswith('0 hour(s)'):
+        return ''
+    if el.startswith('1 hour(s)'):
+        return el.replace('hour(s)', 'hour')
+    return el.replace('hour(s)', 'hours')
 
+workload_cols = ['labs', 'lecture', 'project', 'practicalWork', 'exercises']
+courses_cb[workload_cols] = (
+    courses_cb[workload_cols].fillna('')
+    .apply(lambda s: s.str.lower())
+    .applymap(format_workload_col)
+)
 
 # Interpret no semester info as the course is taught in any semester
 courses_cb.loc[courses_cb.semester == '', 'semester'] = 'Any'
@@ -145,27 +129,18 @@ courses_cb.loc[courses_cb.semester == '', 'semester'] = 'Any'
 
 # The columns `coefficient` and `credits` should be merged.
 
-# In[13]:
-
-
 assert not (courses_cb.credits == courses_cb.coefficient).any()
 
 
 # No rows should have both `credits` and `coefficient` column. Some rows have neither column specified.
-# 
+#
 # Let's first merge the columns and then manually fill in the gaps if possible.
-
-# In[14]:
-
 
 courses_cb.credits.fillna(courses_cb.coefficient, inplace=True)
 courses_cb.drop('coefficient', axis=1, inplace=True)
 
 
 # Let's now fill in the gaps
-
-# In[15]:
-
 
 print('Courses with no credits info (imputed with 0):')
 print(courses_cb[courses_cb.credits.isna()].index)
@@ -176,14 +151,8 @@ print(courses_cb[courses_cb.credits.isna()].index)
 # * PENS-200 Ground control in Swiss law, credits are included in the ENAC week
 # * PHYS-300(a) is also without credits
 
-# In[16]:
-
-
 courses_cb.fillna(value={'credits': '0'}, inplace=True)
 assert courses_cb.credits.notna().all()
-
-
-# In[17]:
 
 
 # Treat programs column separately
@@ -193,24 +162,20 @@ dups = get_duplicates(courses_cb)
 print(dups)
 
 
-# In[18]:
-
-
 courses_cb.loc['bio-482', 'lecturers'] = courses_cb.loc['bio-482'].lecturers[0]
 courses_cb.loc['bio-502', 'semester'] = courses_cb.loc['bio-502'].semester[0]
-courses_cb.loc['bioeng-448', 'lecturers'] = courses_cb.loc['bioeng-448'].lecturers[1]
+# courses_cb.loc['bioeng-448', 'lecturers'] = courses_cb.loc['bioeng-448'].lecturers[1]
 courses_cb.loc['ch-443', 'semester'] = courses_cb.loc['ch-443'].semester[0]
 courses_cb.loc['ch-444', 'semester'] = courses_cb.loc['ch-444'].semester[0]
-courses_cb.loc['cs-433', 'lecturers'] = courses_cb.loc['cs-433'].lecturers[0]
+# courses_cb.loc['cs-433', 'lecturers'] = courses_cb.loc['cs-433'].lecturers[0]
+courses_cb.loc['com-506', 'examForm'] = courses_cb.loc['com-506'].examForm[0]
 courses_cb.loc['dh-500', 'semester'] = courses_cb.loc['dh-500'].semester[0]
+courses_cb.loc['eng-466', 'examForm'] = courses_cb.loc['eng-466'].examForm[0]
 courses_cb.loc['fin-401', 'practicalWork'] = courses_cb.loc['fin-401'].practicalWork[0]
 courses_cb.loc['me-411', 'practicalWork'] = courses_cb.loc['me-411'].practicalWork[0]
 courses_cb.loc['me-411', 'credits'] = courses_cb.loc['me-411'].credits[0]
 courses_cb.loc['micro-568', 'lecturers'] = courses_cb.loc['micro-568'].lecturers[0]
 courses_cb.loc['micro-723', 'semester'] = courses_cb.loc['micro-723'].semester[0]
-
-
-# In[19]:
 
 
 dups = get_duplicates(courses_cb)
@@ -223,17 +188,11 @@ courses_cb = df_strip(courses_cb)
 courses_cb.drop_duplicates(inplace=True)
 
 
-# In[20]:
-
-
 # merge programs fields for each course
 # first explode lists and transform to dataframe
 # with columns programSourceId and semesterNumbers
 programs_exploded = courses_programs.explode()
 programs_df = pd.json_normalize(programs_exploded).set_index(programs_exploded.index)
-
-
-# In[21]:
 
 
 programs_map = {
@@ -248,9 +207,6 @@ programs_map = {
 }
 
 
-# In[22]:
-
-
 # Retain only supported program ids
 programs_df = programs_df[programs_df.programSourceId.isin(programs_map)]
 
@@ -260,9 +216,6 @@ programs_details = pd.json_normalize(programs_details).set_index(programs_detail
 
 # Concatenate resulting DF with semesterNumbers column
 programs_df = pd.concat([programs_details, programs_df.semesterNumbers], axis=1).astype({ 'semesterNumbers': str })
-
-
-# In[23]:
 
 
 # duplicate sanity check
@@ -280,21 +233,8 @@ if len(dups) > 0:
 assert dups.size == 0
 
 
-# In[24]:
-
-
-programs_df.loc[('cs-596', 'master', 'computer-science'), 'semesterNumbers'] = programs_df.loc[('cs-596', 'master', 'computer-science')].semesterNumbers[0]
-programs_df.loc[('cs-596', 'master', 'cybersecurity'), 'semesterNumbers'] = programs_df.loc[('cs-596', 'master', 'cybersecurity')].semesterNumbers[0]
-
-
-# In[25]:
-
-
 programs_df = programs_df.reset_index().drop_duplicates()
 programs_df['semesterNumbers'] = programs_df.semesterNumbers.apply(eval)
-
-
-# In[26]:
 
 
 def key_func(series):
@@ -309,9 +249,6 @@ def key_func(series):
     return series
 
 programs_df = programs_df.sort_values(by=['slug', 'levelSlug', 'programSlug'], key=key_func)
-
-
-# In[27]:
 
 
 def create_program_column(r):
@@ -332,13 +269,7 @@ def create_program_column(r):
 programs_df['program'] = programs_df.apply(create_program_column, axis=1)
 
 
-# In[28]:
-
-
 programs_df.drop(['programTitle', 'programSlug', 'semesterNumbers'], axis=1, inplace=True)
-
-
-# In[29]:
 
 
 def agg_programs(df):
@@ -353,13 +284,7 @@ programs_df = programs_df.groupby(['slug', 'levelSlug'], sort=False).apply(agg_p
 programs_df = programs_df.groupby('slug', sort=False).apply(lambda ser: list(ser)).rename('levels')
 
 
-# In[30]:
-
-
 courses_cb['levels'] = programs_df.astype(str)
-
-
-# In[31]:
 
 
 courses_nolink = courses_sp[~courses_sp.index.isin(courses_cb.index)]
@@ -368,30 +293,21 @@ print('Courses without linked coursebook page:\n', courses_nolink.name)
 # Manually fill in semester info for these courses later
 
 
-# In[32]:
-
-
 # Ensure indexes of dataframes are compatible:
 courses_cb = courses_cb.reindex(index=courses_sp.index)
 
 # Fill NaN with empty list string (later converted to list)
 courses_cb.loc[courses_cb.levels.isna(), 'levels'] = '[]'
 
-
-# ## Merge `courses_sp` and `courses_cb`
-# ***
-
-# In[33]:
-
+#######################################
+# Merge `courses_sp` and `courses_cb` #
+#######################################
 
 common_cols = courses_cb.columns.intersection(courses_sp.columns)
 for col in common_cols:
     idx = courses_cb[col].isna()
     # Replace NaN in courses_cb with values in courses_sp
     courses_cb.loc[idx, col] = courses_sp.loc[idx, col]
-
-
-# In[34]:
 
 
 # Lecturers in one dataframe contains only last names
@@ -409,16 +325,10 @@ lecturers_sciper = (
 )
 
 
-# In[35]:
-
-
 # with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.max_columns', None):
 lecturers_inconsistent = lecturers[lecturers_sciper.l_studyplan != lecturers_sciper.l_coursebook]
 print('Inconsistent lecturers info in studyplans vs coursebooks')
 print(lecturers_inconsistent)
-
-
-# In[36]:
 
 
 # Rely on lecturers info given in coursebooks
@@ -426,13 +336,7 @@ courses_sp.lecturers = courses_cb.lecturers
 courses_cb.drop('lecturers', axis=1, inplace=True)
 
 
-# In[37]:
-
-
 common_cols = common_cols.drop('lecturers')
-
-
-# In[38]:
 
 
 diffs = courses_sp[common_cols].ne(courses_cb[common_cols])
@@ -441,9 +345,6 @@ cols_diff = common_cols[diffs.any()]
 cols_nodiff = common_cols.drop(cols_diff)
 # drop from either dataframe
 courses_cb.drop(cols_nodiff, axis=1, inplace=True)
-
-
-# In[39]:
 
 
 with pd.option_context('display.max_rows', None):
@@ -455,22 +356,13 @@ with pd.option_context('display.max_rows', None):
         print(df)
 
 
-# In[40]:
-
-
 # coursebook is more up to date for columns 'credits' and 'examForm'
 courses_sp.drop(['credits', 'examForm'], axis=1, inplace=True)
 # studyplan is more up to date for column 'remark'
 courses_cb.drop('remark', axis=1, inplace=True)
 
 
-# In[41]:
-
-
 courses = pd.concat([courses_sp, courses_cb], axis=1)
-
-
-# In[42]:
 
 
 # Manually fill in semester info for courses without coursebook link
@@ -478,33 +370,32 @@ print('Manually filling in semester info for courses without coursebook link')
 print(list(courses_nolink.index))
 
 
-# In[43]:
-
-
 spring = 'Spring'
 fall = 'Fall'
 Any = 'Any'
 
 manual_semester = {
-    'pens-223': spring,
+    # 'pens-223': spring,
+    'civil-226': spring,
+    'math-511': spring,
+    'civil-464': spring,
+    'ee-599-d': Any,
     'mgt-431': spring,
     'ch-709': spring,
-    'ch-710': Any,  # don't know
+    'ch-710': Any,  # uncertain
     'che-608-1': fall,
     'che-608-2': spring,
     'ch-610': fall,
     'ch-611': fall,
+    'eng-628': Any,
     'bioeng-803': fall,  # summer school (late August)
     'phys-635': spring,
-    'phys-642': Any,  # https://edu.epfl.ch/coursebook/en/statistical-physics-for-optimization-learning-PHYS-642
-    'phys-816': spring
+    # 'phys-642': Any,  # https://edu.epfl.ch/coursebook/en/statistical-physics-for-optimization-learning-PHYS-642
+    # 'phys-816': spring
 }
 
 for idx, semester in manual_semester.items():
     courses.loc[idx, 'semester'] = semester
-
-
-# In[44]:
 
 
 # values in these columns should not be NaN
@@ -515,36 +406,21 @@ print(cols_notna_each)
 assert cols_notna_each.all()
 
 
-# In[45]:
-
-
 # Fill NaN in other columns with empty string
 courses.fillna(value='', inplace=True)
-
-
-# In[46]:
 
 
 print('Comparing `subjectExamined` and `name` fields\n')
 print(courses[courses.subjectExamined != courses.name][['subjectExamined', 'name']])
 
 
-# In[47]:
-
-
 # Drop subjectExamined field
 courses.drop('subjectExamined', axis=1, inplace=True)
-
-
-# In[48]:
 
 
 text_cols = ['summary', 'content', 'keywords', 'requiredCourses', 'recommendedCourses', 'priorConcepts', 'preparationFor']
 courses_text = courses[text_cols]
 courses.drop(text_cols, axis=1, inplace=True)
-
-
-# In[49]:
 
 
 # str --> list
@@ -556,29 +432,10 @@ courses = courses.astype({
 courses.reset_index(inplace=True)
 
 
-# In[50]:
-
-
-# %pycat utils/write
-
-
-# In[51]:
-
-
 write.write_df_processed('courses', courses)
-
-
-# In[52]:
-
-
 write.write_df_processed('courses-text', courses_text, orient='index')
 
-
-# ## Process `programs` and create `epfl` dict
-# ***
-
-# In[53]:
-
+# Process `programs` and create `epfl` dict
 
 # add 'courses' property to all levels
 for level in programs:
@@ -590,24 +447,10 @@ for level in programs:
     })
 
 
-# In[54]:
-
-
 # add 'courses' property to top level
 epfl = {
     'courses': list(courses.slug.values),
     'levels': programs
 }
 
-
-# In[55]:
-
-
 write.write_object('epfl', epfl, subdir='processed')
-
-
-# In[ ]:
-
-
-
-
