@@ -1,17 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
 import json
 import copy
 import redis
 from os import getenv
-from utils import read, write
-
-
-# In[2]:
-
+from utils import read
 
 epfl = read.read_json_processed('epfl')
 courses = read.read_json_processed('courses')
@@ -26,15 +20,11 @@ links = [
 ]
 
 
-# In[3]:
-
 
 # course dicts with only necessary fields for display and filtering
 minimal_keys = ('slug', 'code', 'name', 'section', 'semester', 'credits')
 courses_minimal = [dict((k, c[k]) for k in minimal_keys) for c in courses]
 
-
-# In[4]:
 
 
 def resolve_slugs(slugs, ingoing=False, outgoing=False):
@@ -47,8 +37,6 @@ def resolve_slugs(slugs, ingoing=False, outgoing=False):
     ]
 
 
-# In[5]:
-
 
 def filter_links(slugs):
     return [
@@ -56,8 +44,6 @@ def filter_links(slugs):
         if l['source'] in slugs or l['target'] in slugs
     ]
 
-
-# In[6]:
 
 
 def get_neighborhood(slugs):
@@ -99,8 +85,6 @@ def get_neighborhood(slugs):
     }
 
 
-# In[7]:
-
 
 def get_filters(courses):
     return {
@@ -112,17 +96,11 @@ def get_filters(courses):
     }
 
 
-# In[8]:
-
 
 redis_url = getenv("REDIS_URL")
 redis_url = redis_url if redis_url else 'redis://@localhost:6379'
 
 r = redis.Redis(ssl_cert_reqs=None).from_url(redis_url)
-
-
-# In[9]:
-
 
 def redis_key(*slugs, prefix_slug = 'epfl'):
     return '_'.join([prefix_slug, *slugs])
@@ -131,8 +109,45 @@ def redis_set(key, data_dict):
     r.set(key, json.dumps(data_dict))
 
 
-# In[10]:
-
+# navigation info (for Vuetify treeview component)
+nav = [
+    {
+        'id': l['slug'],
+        'name': l['title'],
+        'params': {
+            'level': l['slug'],
+            'program': None,
+            'specialization': None
+        },
+        'children': [
+            {
+                'id': f"{l['slug']}-{p['slug']}",
+                'name': p['title'],
+                'params': {
+                    'level': l['slug'],
+                    'program': p['slug'],
+                    'specialization': None
+                },
+                'children': [
+                    {
+                        'id': f"{l['slug']}-{p['slug']}-{s['slug']}",
+                        'name': s['title'],
+                        'params': {
+                            'level': l['slug'],
+                            'program': p['slug'],
+                            'specialization': s['slug']
+                        }
+                    }
+                    for s in p['specializations']
+                ]
+                if l['slug'] == 'master' else []
+            }
+            for p in l['programs']
+        ]
+    }
+    for l in epfl['levels']
+]
+redis_set(redis_key(prefix_slug = 'nav'), nav)
 
 # root data object
 # need to create a deep copy since we delete level['programs']
@@ -140,6 +155,7 @@ cepfl = copy.deepcopy(epfl)
 cepfl_slugs = cepfl['courses']
 cepfl['courses'] = resolve_slugs(cepfl_slugs)
 cepfl = {
+    'title': 'All courses',
     **cepfl,
     'ingoingCourses': [],
     'outgoingCourses': [],
@@ -154,8 +170,6 @@ for level in cepfl['levels']:
 
 redis_set(redis_key(), cepfl)
 
-
-# In[11]:
 
 
 for level in epfl['levels']:
@@ -203,9 +217,6 @@ for level in epfl['levels']:
 
                 key = redis_key(level['slug'], program['slug'], specialization['slug'])
                 redis_set(key, specialization)
-
-
-# In[12]:
 
 
 for course in courses:
