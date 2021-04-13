@@ -11,8 +11,8 @@ def scrape():
         for program in programs_list:
             program_extra, courses_list = studyplan.scrape(program)
 
-            # use update() to maintain reference
-            program.update(program_extra)
+            # update dict to maintain reference
+            program |= program_extra
 
             courses_studyplan.extend(courses_list)
 
