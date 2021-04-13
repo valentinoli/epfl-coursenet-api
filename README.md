@@ -1,3 +1,5 @@
+# EPFL CourseNet API
+
 Set up virtual environment:
 ```bash
 python -m venv ./py/env
@@ -36,5 +38,5 @@ npm run dev
 Run the following in your activated environment to connect the environment to Jupyter notebook:
 ```bash
 pip install ipykernel
-python -m ipykernel install --user --name=coursebook-env
+python -m ipykernel install --user --name=coursenet-env
 ```
