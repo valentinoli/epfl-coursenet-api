@@ -25,17 +25,30 @@ links = [
 minimal_keys = ('slug', 'code', 'name', 'section', 'semester', 'credits')
 courses_minimal = [dict((k, c[k]) for k in minimal_keys) for c in courses]
 
+def get_neighborhood_key(incoming, outgoing):
+    if incoming and outgoing:
+        return 'both'
+    if incoming:
+        return 'incoming'
+    if outgoing:
+        return 'outgoing'
+    return None
 
 
 def resolve_slugs(slugs, incoming=False, outgoing=False):
     # the courses listed in `slugs` are by default not
     # part of the neighborhood
+    neighborhood_key = get_neighborhood_key(incoming, outgoing)
     return [
-        {**c, 'incomingNeighbor': incoming, 'outgoingNeighbor': outgoing}
+        {
+            **c,
+            'incoming': incoming,
+            'outgoing': outgoing,
+            'neighborhoodKey': neighborhood_key
+        }
         for c in courses_minimal
         if c['slug'] in slugs
     ]
-
 
 
 def filter_links(slugs):
@@ -61,29 +74,31 @@ def compute_graph(slugs, subgraph_courses):
         l for l in links_filtered
         if l not in incoming_links and l not in outgoing_links
     ]
-    incoming_slugs = [l['source'] for l in incoming_links]
-    outgoing_slugs = [l['target'] for l in outgoing_links]
+    incoming_slugs = set(l['source'] for l in incoming_links)
+    outgoing_slugs = set(l['target'] for l in outgoing_links)
 
+    # The intersection of the two sets consists of both incoming and outgoing courses
+    incoming_outgoing_slugs = incoming_slugs.intersection(outgoing_slugs)
+    incoming_slugs = incoming_slugs - incoming_outgoing_slugs
+    outgoing_slugs = outgoing_slugs - incoming_outgoing_slugs
+
+    incoming_outgoing_courses = resolve_slugs(incoming_outgoing_slugs, incoming=True, outgoing=True)
     incoming_courses = resolve_slugs(incoming_slugs, incoming=True)
     outgoing_courses = resolve_slugs(outgoing_slugs, outgoing=True)
 
-    for cin in incoming_courses:
-        for cout in outgoing_courses:
-            if cin['slug'] == cout['slug']:
-                # Course is part of both incoming and outgoing neighborhoods
-                cin['incomingNeighbor'] = True
-                cin['outgoingNeighbor'] = True
-                cout['incomingNeighbor'] = True
-                cout['outgoingNeighbor'] = True
-
     return {
         'graph': {
-            'subgraphCourses': subgraph_courses,
-            'incomingCourses': incoming_courses,
-            'outgoingCourses': outgoing_courses,
-            'subgraphLinks': subgraph_links,
-            'incomingLinks': incoming_links,
-            'outgoingLinks': outgoing_links
+            'nodes': {
+                'subgraphNodes': subgraph_courses,
+                'incomingNodes': incoming_courses,
+                'outgoingNodes': outgoing_courses,
+                'incomingOutgoingNodes': incoming_outgoing_courses,
+            },
+            'links': {
+                'subgraphLinks': subgraph_links,
+                'incomingLinks': incoming_links,
+                'outgoingLinks': outgoing_links
+            }
         }
     }
 
@@ -91,7 +106,7 @@ def compute_graph(slugs, subgraph_courses):
 
 def compute_filters(courses):
     return {
-        'filters': {
+        'filterOptions': {
             'sections': sorted({ c['section'] for c in courses }),
             'semesters': sorted({ c['semester'] for c in courses }),
             'credits': sorted({ c['credits'] for c in courses })
@@ -204,6 +219,15 @@ for l in epfl['levels']:
         'divider': True
     })
 
+
+# root data object
+# need to create a deep copy since we delete level['programs']
+cepfl = copy.deepcopy(epfl)
+cepfl_slugs = cepfl['courses']
+del cepfl['courses']
+cepfl_courses = resolve_slugs(cepfl_slugs)
+all_filters = compute_filters(cepfl_courses)
+
 nav = {
     'treeview': [{
         'id': all_courses_slug,
@@ -215,16 +239,11 @@ nav = {
         },
         'children': nav_treeview
     }],
-    'autocomplete': nav_autocomplete
+    'autocomplete': nav_autocomplete,
+    # pass all filter options
+    'allFilterOptions': all_filters['filterOptions']
 }
 redis_set(redis_key(prefix_slug = 'nav'), nav)
-
-# root data object
-# need to create a deep copy since we delete level['programs']
-cepfl = copy.deepcopy(epfl)
-cepfl_slugs = cepfl['courses']
-del cepfl['courses']
-cepfl_courses = resolve_slugs(cepfl_slugs)
 
 cepfl = {
     'entity': 'root',
@@ -233,7 +252,7 @@ cepfl = {
     'slug': all_courses_slug,
     **cepfl,
     **compute_graph(cepfl_slugs, cepfl_courses),
-    **compute_filters(cepfl_courses)
+    **all_filters
 }
 
 for level in cepfl['levels']:
