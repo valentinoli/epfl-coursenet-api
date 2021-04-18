@@ -312,27 +312,36 @@ for col in common_cols:
 
 # Lecturers in one dataframe contains only last names
 # so we need to compare SCIPER numbers to detect discrepancies
-lecturers = pd.concat(
-    [courses_sp.lecturers, courses_cb.lecturers],
-    keys=['l_studyplan', 'l_coursebook'],
-    axis=1
+lecturers = (
+    pd.concat(
+        [courses_sp.lecturers, courses_cb.lecturers],
+        keys=['l_studyplan', 'l_coursebook'],
+        axis=1
+    )
+    # str --> list
+    .applymap(eval)
+    # remove "Various/Invited lecturers", sciper 126096 is also used for that
+    # note: remove this line later, since scraping code will take care of it
+    .applymap(lambda lec: list(filter(lambda l: l['sciper'] and l['sciper'] != '126096', lec)))
 )
 
 lecturers_sciper = (
     lecturers
-    .applymap(lambda val: sorted(v['sciper'] if v['sciper'] else '' for v in eval(val)))
+    .applymap(lambda val: sorted(v['sciper'] for v in val))
+    # convert list back to string since we want to compare columns
     .astype(str)
 )
 
 
-# with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.max_columns', None):
 lecturers_inconsistent = lecturers[lecturers_sciper.l_studyplan != lecturers_sciper.l_coursebook]
 print('Inconsistent lecturers info in studyplans vs coursebooks')
 print(lecturers_inconsistent)
 
 
-# Rely on lecturers info given in coursebooks
-courses_sp.lecturers = courses_cb.lecturers
+# Lecturers info in coursebooks seem to be more reliable
+# than info in studyplans, so we rely on the coursebooks
+# Note! lecturers.l_coursebook column has already been cast to list
+courses_sp.lecturers = lecturers.l_coursebook
 courses_cb.drop('lecturers', axis=1, inplace=True)
 
 
@@ -424,7 +433,7 @@ courses.drop(text_cols, axis=1, inplace=True)
 
 
 # str --> list
-courses[['lecturers', 'levels']] = courses[['lecturers', 'levels']].applymap(eval)
+courses[['levels']] = courses[['levels']].applymap(eval)
 # str --> int
 courses = courses.astype({
     'credits': int
