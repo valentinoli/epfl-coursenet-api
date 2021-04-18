@@ -60,9 +60,11 @@ def scrape_coursebook_lecturers(content):
                 match = regex_people_href.search(href)
                 sciper = match.group(1)
                 name = sibling.text.strip()
-                if 'Profs divers' in name:
-                    name = 'Various lecturers'
-                    sciper = ''
+                if not sciper or sciper == '126096' or 'lecturers' in name.lower():
+                    continue
+                # if 'Profs divers' in name:
+                    # name = 'Various lecturers'
+                    # sciper = ''
                 lecturers.append({
                     'name': name,
                     'sciper': sciper

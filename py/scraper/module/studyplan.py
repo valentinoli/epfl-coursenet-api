@@ -266,10 +266,12 @@ def scrape_lecturers(line_tag):
     lecturers = []
     for child in enseignement_name.children:
         if isinstance(child, NavigableString) and child.strip():
-            lecturers.append({
-                'name': str(child.strip()),
-                'sciper': ''
-            })
+            # Various lecturers
+            continue
+            # lecturers.append({
+            #     'name': 'Various lecturers',#  str(child.strip()),
+            #     'sciper': ''
+            # })
         elif child.name == 'a':
             href = child.get('href')
             qs = parse_qs(urlparse(href).query)
