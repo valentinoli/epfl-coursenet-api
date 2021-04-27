@@ -9,25 +9,19 @@ from utils import read
 
 epfl = read.read_json_processed('epfl')
 courses = read.read_json_processed('courses')
-links = read.read_json('req-links', 'labelled')
-
-# filter out links that reference courses
-# that are not there any more
-courseslugs = epfl['courses']
-links = [
-    l for l in links
-    if l['source'] in courseslugs and l['target'] in courseslugs
-]
-
+links = read.read_json_processed('links')
 
 
 # course dicts with only necessary fields for display and filtering
-minimal_keys = ('slug', 'code', 'name', 'section', 'semester', 'credits')
+minimal_keys = (
+    'slug', 'code', 'name', 'section', 'semester',
+    'credits', 'language', 'examForm', 'lecturers'
+)
 courses_minimal = [dict((k, c[k]) for k in minimal_keys) for c in courses]
 
 def get_neighborhood_key(incoming, outgoing):
     if incoming and outgoing:
-        return 'both'
+        return 'incomingOutgoing'
     if incoming:
         return 'incoming'
     if outgoing:
@@ -41,13 +35,13 @@ def resolve_slugs(slugs, incoming=False, outgoing=False):
     neighborhood_key = get_neighborhood_key(incoming, outgoing)
     return [
         {
-            **c,
+            **course,
             'incoming': incoming,
             'outgoing': outgoing,
             'neighborhoodKey': neighborhood_key
         }
-        for c in courses_minimal
-        if c['slug'] in slugs
+        for course in courses_minimal
+        if course['slug'] in slugs
     ]
 
 
@@ -89,15 +83,15 @@ def compute_graph(slugs, subgraph_courses):
     return {
         'graph': {
             'nodes': {
-                'subgraphNodes': subgraph_courses,
-                'incomingNodes': incoming_courses,
-                'outgoingNodes': outgoing_courses,
-                'incomingOutgoingNodes': incoming_outgoing_courses,
+                'subgraph': subgraph_courses,
+                'incoming': incoming_courses,
+                'outgoing': outgoing_courses,
+                'incomingOutgoing': incoming_outgoing_courses,
             },
             'links': {
-                'subgraphLinks': subgraph_links,
-                'incomingLinks': incoming_links,
-                'outgoingLinks': outgoing_links
+                'subgraph': subgraph_links,
+                'incoming': incoming_links,
+                'outgoing': outgoing_links
             }
         }
     }
@@ -107,9 +101,11 @@ def compute_graph(slugs, subgraph_courses):
 def compute_filters(courses):
     return {
         'filterOptions': {
-            'sections': sorted({ c['section'] for c in courses }),
-            'semesters': sorted({ c['semester'] for c in courses }),
-            'credits': sorted({ c['credits'] for c in courses })
+            'section': sorted({ c['section'] for c in courses }),
+            'semester': sorted({ c['semester'] for c in courses }),
+            'credits': sorted({ c['credits'] for c in courses }),
+            'language': sorted({ c['language'] for c in courses }),
+            'examForm': sorted({ c['examForm'] for c in courses })
         }
     }
 
@@ -140,6 +136,7 @@ nav_treeview = [
             'program': None,
             'specialization': None
         },
+        'courses': l['courses'],
         'children': [
             {
                 'id': f"{l['slug']}-{p['slug']}",
@@ -149,6 +146,7 @@ nav_treeview = [
                     'program': p['slug'],
                     'specialization': None
                 },
+                'courses': p['courses'],
                 'children': [
                     {
                         'id': f"{l['slug']}-{p['slug']}-{s['slug']}",
@@ -158,7 +156,9 @@ nav_treeview = [
                             'level': l['slug'],
                             'program': p['slug'],
                             'specialization': s['slug']
-                        }
+                        },
+                        'courses': s['courses'],
+                        'children': []
                     }
                     for s in p['specializations']
                 ]
@@ -170,53 +170,80 @@ nav_treeview = [
     for l in epfl['levels']
 ]
 
+
+def create_path(level=None, program=None, specialization=None):
+    path = ''
+    if level:
+        path += f'/{level}'
+        if program:
+            path += f'/{program}'
+            if specialization:
+                path += f'/{specialization}'
+        return path
+    return f'/{all_courses_slug}'
+
+
 nav_autocomplete = [{
     'title': all_courses_title,
-    'path': f"/{all_courses_slug}",
-    'icon': 'mdi-all-inclusive'
+    'path': create_path(),
+    'icon': 'mdi-all-inclusive',
+    # 'parent': []
 },{
-    'divider': True
+    'divider': True,
+    # 'parent': []
 }]
 for l in epfl['levels']:
+    # level_path = create_path(l['slug'])
     nav_autocomplete.extend([{
         'title': l['title'],
-        'path': f"/{l['slug']}",
-        'icon': 'mdi-school-outline'
+        'path': create_path(l['slug']),
+        'icon': 'mdi-school-outline',
+        # 'parent': all_courses_path,
     },
     {
-        'divider': True
+        'divider': True,
+        # 'parent': level_path
     },
     {
-        'header': f"{l['title']} Programs"
+        'header': f"{l['title']} Programs",
+        # 'parent': level_path
     }])
     for p_idx, p in enumerate(l['programs']):
+        # program_path = create_path(l['slug'], p['slug'])
         nav_autocomplete.append({
             'title': p['title'],
             'subtitle': l['title'],
-            'path': f"/{l['slug']}/{p['slug']}",
-            'icon': 'mdi-school'
+            'path': create_path(l['slug'], p['slug']),
+            'icon': 'mdi-school',
+            # 'parent': level_path
         })
 
         if l['slug'] == 'master' and len(p['specializations']) > 0:
             nav_autocomplete.extend([{
-                'divider': True
+                'divider': True,
+                # 'parent': program_path
             },
             {
-                'header': f"{p['title']} Master Specializations"
+                'header': f"{p['title']} Master Specializations",
+                # 'parent': program_path
             }])
             for s in p['specializations']:
+                # spec_path = create_path(l['slug'], p['slug'], s['slug'])
                 nav_autocomplete.append({
                     'title': s['title'],
                     'subtitle': f"{p['title']} Master Specialization",
-                    'path': f"/{l['slug']}/{p['slug']}/{s['slug']}",
-                    'specializationValue': s['value']
+                    'path': create_path(l['slug'], p['slug'], s['slug']),
+                    'specializationValue': s['value'],
+                    # 'parent': program_path
                 })
 
             nav_autocomplete.append({
-                'divider': True
+                'divider': True,
+                # 'parent': program_path
             })
     nav_autocomplete.append({
-        'divider': True
+        'divider': True,
+        # 'parent': level_path
     })
 
 
@@ -228,17 +255,20 @@ del cepfl['courses']
 cepfl_courses = resolve_slugs(cepfl_slugs)
 all_filters = compute_filters(cepfl_courses)
 
+nav_treeview = {
+    'id': all_courses_slug,
+    'name': all_courses_title,
+    'params': {
+        'level': all_courses_slug,
+        'program': None,
+        'specialization': None
+    },
+    'courses': epfl['courses'],
+    'children': nav_treeview
+}
+
 nav = {
-    'treeview': [{
-        'id': all_courses_slug,
-        'name': all_courses_title,
-        'params': {
-            'level': all_courses_slug,
-            'program': None,
-            'specialization': None
-        },
-        'children': nav_treeview
-    }],
+    'treeview': nav_treeview,
     'autocomplete': nav_autocomplete,
     # pass all filter options
     'allFilterOptions': all_filters['filterOptions']
@@ -251,6 +281,7 @@ cepfl = {
     'title': all_courses_title,
     'slug': all_courses_slug,
     **cepfl,
+    'treeview': nav_treeview,
     **compute_graph(cepfl_slugs, cepfl_courses),
     **all_filters
 }
@@ -262,7 +293,7 @@ redis_set(redis_key(), cepfl)
 specializationsKey = 'specializations'
 programsKey = 'programs'
 
-for level in epfl['levels']:
+for l_idx, level in enumerate(epfl['levels']):
     clevel = level
     if level['slug'] == 'master':
         # need to create a deep copy since we delete a property
@@ -278,6 +309,7 @@ for level in epfl['levels']:
         'entity': 'level',
         'subentityKey': programsKey,
         **clevel,
+        'treeview': nav_treeview['children'][l_idx],
         **compute_graph(clevel_slugs, clevel_courses),
         **compute_filters(clevel_courses)
     }
@@ -285,10 +317,10 @@ for level in epfl['levels']:
     key = redis_key(level['slug'])
     redis_set(key, clevel)
 
-    for program in level[programsKey]:
+    for p_idx, program in enumerate(level[programsKey]):
         if level['slug'] == 'master':
             # Master program
-            for specialization in program[specializationsKey]:
+            for s_idx, specialization in enumerate(program[specializationsKey]):
                 # Store specializations (if any)
                 s = copy.deepcopy(specialization)
                 s_slugs = s['courses']
@@ -297,6 +329,7 @@ for level in epfl['levels']:
                 s = {
                     'entity': 'specialization',
                     **s,
+                    'treeview': nav_treeview['children'][l_idx]['children'][p_idx]['children'][s_idx],
                     **compute_graph(s_slugs, s_courses),
                     **compute_filters(s_courses)
                 }
@@ -320,6 +353,7 @@ for level in epfl['levels']:
         p = {
             **p,
             **program,
+            'treeview': nav_treeview['children'][l_idx]['children'][p_idx],
             **compute_graph(program_slugs, program_courses),
             **compute_filters(program_courses)
         }
@@ -329,5 +363,6 @@ for level in epfl['levels']:
 
 
 for course in courses:
+
     key = redis_key(course['slug'], prefix_slug='course')
     redis_set(key, course)
