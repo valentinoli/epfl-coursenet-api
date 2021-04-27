@@ -438,9 +438,38 @@ courses[['levels']] = courses[['levels']].applymap(eval)
 courses = courses.astype({
     'credits': int
 })
-courses.reset_index(inplace=True)
 
 
+#######################################
+# Process and filter links            #
+#######################################
+links = read.read_json('req-links', 'labelled')
+
+# filter out links that reference courses
+# that are not there any more
+course_slugs = courses.index.to_list()
+
+links = [
+    l for l in links
+    if l['source'] in course_slugs and l['target'] in course_slugs
+]
+
+write.write_object('links', links, subdir='processed')
+
+courses['requiredCourses'] = [[] for _ in range(len(courses))]
+courses['dependentCourses'] = [[] for _ in range(len(courses))]
+
+# add index as one of the columns
+courses['slug'] = courses.index
+
+cols = ['slug', 'code', 'name']
+for link in links:
+    source = courses.loc[link['source']]
+    target = courses.loc[link['target']]
+    target.requiredCourses.append(dict(source[cols]))
+    source.dependentCourses.append(dict(target[cols]))
+
+courses.reset_index(inplace=True, drop=True)
 write.write_df_processed('courses', courses)
 write.write_df_processed('courses-text', courses_text, orient='index')
 
@@ -458,7 +487,7 @@ for level in programs:
 
 # add 'courses' property to top level
 epfl = {
-    'courses': list(courses.slug.values),
+    'courses': course_slugs,
     'levels': programs
 }
 
