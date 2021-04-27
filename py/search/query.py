@@ -35,12 +35,12 @@ try:
     topk = int(topk)
 except:
     raise TypeError('topk query parameter should be an integer')
-    
+
 query = ' '.join(sys.argv[2:])
 
 ids, similarities = search(query, tfidf, features, topk)
-result_df = courses_df.loc[list(ids), ['slug', 'name', 'keywords']]
-result_df.insert(0, "cosine_similarity", similarities, True) 
+result_df = courses_df.loc[list(ids), ['slug', 'code', 'name', 'keywords']]
+result_df.insert(0, "cosine_similarity", similarities, True)
 
 output = result_df.to_json(orient='records')
 
