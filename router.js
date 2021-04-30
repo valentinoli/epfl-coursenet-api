@@ -1,10 +1,12 @@
 const { promisify } = require('util')
 const exec = promisify(require('child_process').exec)
+const { spawn } = require('child_process')
 
 const express = require('express')
 const redis = require('redis')
 
 const router = express.Router()
+router.use(express.json())
 
 const {
   REDIS_URL = 'redis://@localhost:6379'
@@ -67,6 +69,7 @@ async function submitQuery(req, res, next) {
     return res.status(400).json({ error: 'Parameter <query> is missing' })
   }
   const cmd = `python ./py/search/query.py ${topk} ${query}`
+  console.log(query)
   const { stdout, stderr } = await exec(cmd)
 
   console.log('stdout:', stdout)
@@ -77,6 +80,28 @@ async function submitQuery(req, res, next) {
   }
 
   return res.json(JSON.parse(stdout))
+}
+
+async function findSimlinks(req, res, next) {
+  const { threshold, slugs } = req.body
+
+  // todo improve request body validation?
+  if (!Array.isArray(slugs) || !threshold) {
+    return res.status(400).json({ error: 'Invalid parameters' })
+  }
+
+  const child = spawn('python', ['./py/search/simlinks.py'])
+  child.stderr.pipe(process.stderr)
+
+  child.stdin.write(`${threshold}#${slugs}`)
+  child.stdin.end()  // important to call end()!
+
+  let data = ''
+  for await (const chunk of child.stdout) {
+    data += chunk
+  }
+
+  return res.json(JSON.parse(data))
 }
 
 router.get('/', (req, res) => {
@@ -109,6 +134,10 @@ router.get(
 router.get(
   '/course/search',
   catchErrors(submitQuery)
+)
+router.post(
+  '/simlinks',
+  catchErrors(findSimlinks)
 )
 
 module.exports = router

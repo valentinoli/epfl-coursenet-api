@@ -11,11 +11,11 @@ app.use(express.json())
 app.disable('x-powered-by')
 
 function executePythonProcess() {
-  const py = spawn('python', ['./py/init.py'])
+  const child = spawn('python', ['./py/init.py'])
 
-  py.stdout.pipe(process.stdout)
-  py.stderr.pipe(process.stderr)
-  py.on('close', (code) => {
+  child.stdout.pipe(process.stdout)
+  child.stderr.pipe(process.stderr)
+  child.on('close', (code) => {
     console.log(`child process exited with code ${code}`)
   })
 

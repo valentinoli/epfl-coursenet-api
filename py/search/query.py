@@ -1,13 +1,15 @@
 import sys
-
-if len(sys.argv) < 3:
-    raise ValueError('Some arguments are missing')
-
 from operator import itemgetter
 
+# Note that the tf-idf functionality in sklearn.feature_extraction.text can produce
+# normalized vectors, in which case cosine_similarity is equivalent to linear_kernel, only slower.
+# https://scikit-learn.org/stable/modules/metrics.html#cosine-similarity
 from sklearn.metrics.pairwise import linear_kernel
 
 from search import helpers
+
+if len(sys.argv) < 3:
+    raise ValueError('Some arguments are missing')
 
 tfidf = helpers.load_pickle('tfidf')
 courses_df = helpers.load_df('courses_df')
@@ -37,8 +39,10 @@ except:
     raise TypeError('topk query parameter should be an integer')
 
 query = ' '.join(sys.argv[2:])
+# preprocess query in the same way we preprocess docs
+query_clean = helpers.clean_text(query)
 
-ids, similarities = search(query, tfidf, features, topk)
+ids, similarities = search(query_clean, tfidf, features, topk)
 result_df = courses_df.loc[list(ids), ['slug', 'code', 'name', 'keywords']]
 result_df.insert(0, "cosine_similarity", similarities, True)
 
