@@ -15,9 +15,7 @@ const client = redis.createClient({ url: REDIS_URL });
 
 const getAsync = promisify(client.get).bind(client)
 
-const catchErrors = (fn) => {
-  return (req, res, next) => fn(req, res, next).catch(next)
-}
+const { catchErrors } = require('./utils')
 
 /**
  * Fetches data by key from redis cache

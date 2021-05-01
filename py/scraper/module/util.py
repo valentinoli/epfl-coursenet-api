@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 
 from scraper.module.const import default_container_id
 
+headers = {'User-Agent': 'epfl-coursenet.herokuapp.com - valentin.loftsson@epfl.ch - Thank you!'}
 
 def join_path(*paths):
     return '/'.join(s.strip('/') for s in paths)
@@ -15,7 +16,7 @@ def bsoup(
     return_soup_object=False,
     container_id=default_container_id
 ):
-    res = get(url)
+    res = get(url, headers=headers)
     soup = BeautifulSoup(res.text, 'html.parser')
 
     if return_container:

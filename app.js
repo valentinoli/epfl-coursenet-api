@@ -10,20 +10,34 @@ app.use(express.json())
 
 app.disable('x-powered-by')
 
-function executePythonProcess() {
+async function executePythonProcess() {
   const child = spawn('python', ['./py/init.py'])
+  console.info('Executing python process...')
 
   child.stdout.pipe(process.stdout)
-  child.stderr.pipe(process.stderr)
+
+  let err = ''
+  for await (const chunk of child.stderr) {
+    // collect error messages
+    err += chunk
+  }
+
   child.on('close', (code) => {
     console.log(`child process exited with code ${code}`)
   })
 
-  console.info('Executing python process...')
+  // return error messages to caller
+  return err
 }
 
 // Execute python process on Sundays at 3 AM
-schedule.scheduleJob({ hour: 3, minute: 0, dayOfWeek: 0 }, executePythonProcess)
+schedule.scheduleJob({ hour: 3, minute: 0, dayOfWeek: 0 }, async() => {
+  const err = await executePythonProcess()
+  if (err) {
+    // todo send e-mail notification
+    console.err(err)
+  }
+})
 
 const router = require('./router')
 app.use(router)
