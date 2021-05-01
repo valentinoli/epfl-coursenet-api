@@ -164,16 +164,11 @@ print(dups)
 
 courses_cb.loc['bio-482', 'lecturers'] = courses_cb.loc['bio-482'].lecturers[0]
 courses_cb.loc['bio-502', 'semester'] = courses_cb.loc['bio-502'].semester[0]
-# courses_cb.loc['bioeng-448', 'lecturers'] = courses_cb.loc['bioeng-448'].lecturers[1]
 courses_cb.loc['ch-443', 'semester'] = courses_cb.loc['ch-443'].semester[0]
 courses_cb.loc['ch-444', 'semester'] = courses_cb.loc['ch-444'].semester[0]
-# courses_cb.loc['cs-433', 'lecturers'] = courses_cb.loc['cs-433'].lecturers[0]
-courses_cb.loc['com-506', 'examForm'] = courses_cb.loc['com-506'].examForm[0]
 courses_cb.loc['dh-500', 'semester'] = courses_cb.loc['dh-500'].semester[0]
-courses_cb.loc['eng-466', 'examForm'] = courses_cb.loc['eng-466'].examForm[0]
+courses_cb.loc['ee-556', 'lecture'] = courses_cb.loc['ee-556'].lecture[0]
 courses_cb.loc['fin-401', 'practicalWork'] = courses_cb.loc['fin-401'].practicalWork[0]
-courses_cb.loc['me-411', 'practicalWork'] = courses_cb.loc['me-411'].practicalWork[0]
-courses_cb.loc['me-411', 'credits'] = courses_cb.loc['me-411'].credits[0]
 courses_cb.loc['micro-568', 'lecturers'] = courses_cb.loc['micro-568'].lecturers[0]
 courses_cb.loc['micro-723', 'semester'] = courses_cb.loc['micro-723'].semester[0]
 
