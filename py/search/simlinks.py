@@ -4,9 +4,6 @@ import pandas as pd
 from numpy import nan
 from search import helpers
 
-# threshold_parameter = int(float(sys.argv[1]) * 100)
-# slugs = eval(sys.argv[2])
-
 stdin1, stdin2 = sys.stdin.readline().split('#')
 
 similarity_threshold = int(float(stdin1) * 100)

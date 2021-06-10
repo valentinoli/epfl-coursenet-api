@@ -28,7 +28,7 @@ def search(query, tfidf, features, topk, threshold=0.1):
             cutoff_index = i
             break
     doc_ids = related_docs_indices[:cutoff_index]
-    similarities = [round(s, 2) for s in cos_sim_sorted[:cutoff_index]]
+    similarities = [int(round(s, 2) * 100) for s in cos_sim_sorted[:cutoff_index]]
     return doc_ids, similarities
 
 
