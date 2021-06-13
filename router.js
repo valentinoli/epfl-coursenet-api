@@ -13,6 +13,9 @@ const {
 } = process.env;
 const client = redis.createClient({ url: REDIS_URL });
 
+client.on('connect', () => console.log('Redis connected!'))
+client.on('error', console.error)
+
 const getAsync = promisify(client.get).bind(client)
 
 const { catchErrors } = require('./utils')
