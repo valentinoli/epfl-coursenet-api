@@ -9,7 +9,7 @@ const router = express.Router()
 router.use(express.json())
 
 const {
-  REDIS_URL = 'redis://@localhost:6379'
+  REDIS_URL_STAGING: REDIS_URL = 'redis://@localhost:6379'
 } = process.env;
 const client = redis.createClient({ url: REDIS_URL });
 
@@ -108,16 +108,16 @@ async function findSimlinks(req, res, next) {
 router.get('/', (req, res) => {
   res.json({
     '/epfl': {
-      '/': 'Root of EPFL coursebook tree',
+      '/': 'Root of EPFL tree',
       '/:level': 'Academic level',
       '/:level/:program': 'Study program',
       '/master/:program/:specialization': 'Master specialization'
     },
     '/course': {
-      '/:slug': 'Detailed course information',
+      '/:slug': 'Course information',
       '/search?query=<query>&topk=10': 'Keyword search'
     },
-    '/nav': 'Treeview navigation structure'
+    '/nav': 'Treeview navigation structure',
   })
 })
 router.get(
