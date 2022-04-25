@@ -1,8 +1,13 @@
+require('dotenv').config()
+
 const { spawn } = require('child_process')
 
 const express = require('express')
 const schedule = require('node-schedule')
 const compression = require('compression')
+const sendMail = require('./email')
+
+const { catchErrors } = require('./utils')
 
 const app = express()
 app.use(compression())
@@ -31,13 +36,13 @@ async function executePythonProcess() {
 }
 
 // Execute python process on Sundays at 3 AM
-schedule.scheduleJob({ hour: 3, minute: 0, dayOfWeek: 0 }, async() => {
+schedule.scheduleJob({ hour: 3, minute: 0, dayOfWeek: 0 }, catchErrors(async() => {
   const err = await executePythonProcess()
   if (err) {
-    // todo send e-mail notification
-    console.err(err)
+    console.error(err)
+    await sendMail(err)
   }
-})
+}))
 
 const router = require('./router')
 app.use(router)
