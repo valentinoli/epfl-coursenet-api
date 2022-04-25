@@ -6,3 +6,5 @@ node_modules
 
 # jupyter
 .ipynb_checkpoints
+
+.env
