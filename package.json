@@ -15,6 +15,10 @@
     "dev:redis": "redis-server",
     "dev": "npm-run-all --parallel dev:*"
   },
+  "nodemonConfig": {
+    "verbose": true,
+    "ignore": ["py"]
+  },
   "repository": {
     "type": "git",
     "url": "github.com/valentinoli/epfl-coursenet-api"
