@@ -1,5 +1,9 @@
 # EPFL CourseNet API
 
+Web Scraper & API for the EPFL CourseNet
+
+## Setup and installation
+
 Set up virtual environment:
 ```bash
 python -m venv ./py/env
